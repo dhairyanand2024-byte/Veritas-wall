@@ -1,0 +1,47 @@
+# Veritas Wall — full stack: PostgreSQL (pgvector, RLS) + FastAPI API serving dist/.
+#
+#   cp .env.example .env        # then set VERITAS_PEPPER=$(openssl rand -hex 32)
+#   npm run build               # compile the frontend into ./dist
+#   docker compose up --build   # app on http://localhost:8000
+name: veritas-wall
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-veritas_dev_db}
+      POSTGRES_DB: veritas
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./backend/sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    ports:
+      - "5432:5432" # local debugging / backend test-suite access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d veritas"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql://veritas:veritas@db:5432/veritas
+      # Stage 2 pepper custody: inject from your secret manager in production
+      # (never beside the database). Empty => ephemeral, resets on restart.
+      VERITAS_PEPPER: ${VERITAS_PEPPER:-}
+      VERITAS_RP_ID: ${VERITAS_RP_ID:-localhost}
+      VERITAS_RP_NAME: ${VERITAS_RP_NAME:-Veritas Wall}
+      VERITAS_DIST: /srv/dist
+      VERITAS_ALLOWED_ORIGINS: ${VERITAS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:4173}
+    volumes:
+      - ./dist:/srv/dist:ro # compiled frontend, served same-origin
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

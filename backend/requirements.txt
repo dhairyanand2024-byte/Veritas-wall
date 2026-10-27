@@ -1,0 +1,8 @@
+# Veritas Wall — FastAPI backend (Phase 2)
+# Pin to the versions verified in this project; Python 3.11+.
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+webauthn==3.0.1          # duo-labs py_webauthn (PyPI name is `webauthn`)
+psycopg[binary]==3.3.6
+scikit-learn==1.9.1
+numpy==2.5.4
